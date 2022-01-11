@@ -2,7 +2,7 @@ fx_version 'adamant'
 
 games { 'gta5' }
 
-description 'Slerban autohunt'
+description 'Vehicle hunt by Slerbamonsteri'
 
 version '6.9.0'
 
