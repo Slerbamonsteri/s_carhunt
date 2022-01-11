@@ -1,57 +1,51 @@
-ESX = nil
+local ESX
 local canDraw = false
-local cantspawn = false
+local cantSpawn = false
 local data = {}
+local triggerSafe = ""
+local vehicle, livery
 
-Citizen.CreateThread(function()
-	while ESX == nil do
-		TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
-		Citizen.Wait(0)
-	end
-	--TriggerEvent('s_carhunt:GetServerCoords')
-end)
+function Init()
+	TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
+	repeat Wait(10) until ESX ~= nil
+end
 
+Init()
 
 RegisterNetEvent('esx:playerLoaded')
 AddEventHandler('esx:playerLoaded', function(xPlayer)
-  Wait(5000)
-  TriggerEvent('s_carhunt:GetServerCoords')
+	Wait(5000)
+	TriggerEvent('s_carhunt:GetServerCoords')
 end)
 
-RegisterNetEvent('s_carhunt:cSync',function(sync)
-	print('tän pitäs printata kerran!')
+RegisterNetEvent('s_carhunt:cSync', function(sync)
 	drawing = false
 	ESX.ShowNotification('<span style="color:blue">CarHunt:</span> <br>Vehicle has been claimed! <br>Next vehicle will spawn within 10sec.')
 	TriggerEvent('s_carhunt:GetServerCoords')
 end)
 
-RegisterNetEvent('s_carhunt:cantSpawn', function(cantspawn)
-	cantspawn = true
+RegisterNetEvent('s_carhunt:cantSpawn', function()
+	cantSpawn = true
 end)
 
-
---Functio jolla hakee auton koordit ja claim koordit
+-- This function will get coordinates of the vehicle and claim position from server
 RegisterNetEvent('s_carhunt:GetServerCoords', function()
-	ESX.TriggerServerCallback('s_carhunt:coords',function(info)
+	ESX.TriggerServerCallback('s_carhunt:coords', function(info)
 		data = info
-		koordit = info.coords
-		heading = info.h
-		model = info.model
-		triggersafe = info.triggersafe
+		triggerSafe = info.triggerSafe
 		Wait(1000)
-		spawnAmbient()
+		spawnAmbient(data.coords)
 		drawing = true
-		markers()
+		Markers()
 	end)
 end)
 
-function markers()
-	print('nonii2')
+function Markers()
 	while true do
-		pedc = GetEntityCoords(PlayerPedId())
-		coords = vector3(data.coords.x, data.coords.y, data.coords.z)
-		dist = #(pedc - coords)
-		w = 2000
+		local pedCoords = GetEntityCoords(PlayerPedId())
+		local coords = vector3(data.coords.x, data.coords.y, data.coords.z)
+		local dist = #(pedCoords - coords)
+		local w = 2000
 		if dist <= 4 then
 			w = 5
 			if drawing then
@@ -60,8 +54,8 @@ function markers()
 				if IsControlJustReleased(0, 38) then
 					if IsPedInAnyVehicle(PlayerPedId(), true) then
 						vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
-						local vehped = GetPedInVehicleSeat(GetVehiclePedIsIn(PlayerPedId()), -1)
-						if vehped == PlayerPedId() then
+						local vehPed = GetPedInVehicleSeat(GetVehiclePedIsIn(PlayerPedId()), -1)
+						if vehPed == PlayerPedId() then
 							prepare()
 							drawing = false
 						else
@@ -83,31 +77,26 @@ function prepare()
 	drawing = false
 	DoScreenFadeOut(1000)
 	Wait(1000)
-	DeleteVehicle(vehicle) --Poistaa aiemmin spawnatun ajoneuvon
-	claimcar() --Spawnaa perseen alle claimatun auton
+	DeleteVehicle(vehicle)
+	claimcar()
 	Wait(1000)
 	DoScreenFadeIn(1000)
 	PlaySoundFrontend(-1, "Mission_Pass_Notify", "DLC_HEISTS_GENERAL_FRONTEND_SOUNDS", 1)
 	Scaleforms()
-	TriggerServerEvent('s_carhunt:getcar') --Viedään auto clientin databaseen
+	TriggerServerEvent('s_carhunt:getcar')
 end
 
-function spawnAmbient()
+function spawnAmbient(coords)
 	RequestModel(data.model)
-	coords = coords22
-	while not HasModelLoaded(data.model) do
-		Wait(10)
-	end
+	repeat Wait(10) until HasModelLoaded(data.model)
 	while true do
-		w = 100
-		pedcoords = GetEntityCoords(PlayerPedId())
-		claimcoords = vector3(data.coords.x, data.coords.y, data.coords.z)
-		dist = #(pedcoords - claimcoords)
+		local w = 100
+		local pedCoords = GetEntityCoords(PlayerPedId())
+		local claimCoords = vector3(data.coords.x, data.coords.y, data.coords.z)
+		local dist = #(pedCoords - claimCoords)
 		if dist < 30 then
-			--print(cantspawn)
-			if not cantspawn then
-				if ESX.Game.IsSpawnPointClear(claimcoords, 3.0) then
-					--print('create vehicle')
+			if not cantSpawn then
+				if ESX.Game.IsSpawnPointClear(claimCoords, 3.0) then
 					spawnvehicle = CreateVehicle(data.model, data.coords, false, true)
 					PlaceObjectOnGroundProperly(spawnvehicle)
 					Wait(1000)
@@ -115,47 +104,41 @@ function spawnAmbient()
 					SetEntityVisible(spawnvehicle, true, 0)
 					SetEntityCollision(spawnvehicle, true)
 					livery = SetVehicleLivery(spawnvehicle, 0)
-					newPlate     = exports.esx_vehicleshop:GeneratePlate()
+					newPlate = exports.esx_vehicleshop:GeneratePlate()
 					local vehicleProps = ESX.Game.GetVehicleProperties(vehicle)
 					--local vehicleProps = exports.renzu_customs:GetVehicleProperties(spawnvehicle)
 					vehicleProps.plate = newPlate
 					vehicleProps.livery = livery
 					SetVehicleNumberPlateText(spawnvehicle, newPlate)
-					break
-				else
-					break
 				end
+				break
 			end
 		end
-		Citizen.Wait(w)
+		Wait(w)
 	end
 end
 
 function claimcar()
-	Newvehicle = CreateVehicle(data.model, data.coords, true, true)
-	while (not DoesEntityExist(Newvehicle)) do
-		Citizen.Wait(100)
-	end
-	if DoesEntityExist(Newvehicle) then
-		SetEntityVisible(Newvehicle, true, true)
-		SetEntityCollision(Newvehicle, true)
-		livery = SetVehicleLivery(Newvehicle, 0)
-		--local vehicleProps = exports.renzu_customs:GetVehicleProperties(Newvehicle)
-		local vehicleProps = ESX.Game.GetVehicleProperties(Newvehicle)
+	newVehicle = CreateVehicle(data.model, data.coords, true, true)
+	repeat Wait(100) until DoesEntityExist(newVehicle)
+	if DoesEntityExist(newVehicle) then
+		SetEntityVisible(newVehicle, true, true)
+		SetEntityCollision(newVehicle, true)
+		livery = SetVehicleLivery(newVehicle, 0)
+		--local vehicleProps = exports.renzu_customs:GetVehicleProperties(newVehicle)
+		local vehicleProps = ESX.Game.GetVehicleProperties(newVehicle)
 		vehicleProps.plate = newPlate
 		vehicleProps.livery = livery
-		SetVehicleNumberPlateText(Newvehicle, newPlate)
-		TaskWarpPedIntoVehicle(PlayerPedId(), Newvehicle, -1)
-		TriggerServerEvent(triggersafe..'s_carhunt:setVehicle', vehicleProps, coords, data.model)
+		SetVehicleNumberPlateText(newVehicle, newPlate)
+		TaskWarpPedIntoVehicle(PlayerPedId(), newVehicle, -1)
+		TriggerServerEvent(triggerSafe .. 's_carhunt:setVehicle', vehicleProps, coords, data.model)
 	end
 end
 
---scaleformit sun muut
 function Scaleforms()
-
 	local scaleform = RequestScaleformMovie("MP_BIG_MESSAGE_FREEMODE")
 	while not HasScaleformMovieLoaded(scaleform) do
-		Citizen.Wait(10)
+		Wait(10)
 	end
 	canDraw = 2000
 	BeginScaleformMovieMethod(scaleform, "SHOW_WEAPON_PURCHASED")
@@ -177,7 +160,6 @@ end
 function Draw3DText(x,y,z, text)
     local onScreen,_x,_y=World3dToScreen2d(x,y,z)
     local px,py,pz=table.unpack(GetGameplayCamCoords())
-    
     SetTextScale(0.35, 0.35)
     SetTextFont(4)
     SetTextProportional(1)
@@ -189,4 +171,3 @@ function Draw3DText(x,y,z, text)
     local factor = (string.len(text)) / 370
     DrawRect(_x,_y+0.0125, 0.015+ factor, 0.03, 0, 0, 0, 159)
 end
-

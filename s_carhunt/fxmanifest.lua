@@ -1,6 +1,6 @@
 fx_version 'adamant'
 
-games { 'gta5' }
+game 'gta5'
 
 description 'Vehicle hunt by Slerbamonsteri'
 
@@ -11,6 +11,6 @@ client_scripts {
 }
 
 server_script {
-     'sv.lua',
-     '@mysql-async/lib/MySQL.lua',
+    '@mysql-async/lib/MySQL.lua',
+    'sv.lua'
 }
